@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { TaskDeleteDialog } from "./components/task-delete-dialog";
 import { TaskFormModal } from "./components/task-form-modal";
 import { TaskList } from "./components/task-list";
 import { Toast, type ToastKind } from "./components/toast";
@@ -17,6 +18,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [taskBeingEdited, setTaskBeingEdited] = useState<Task | null>(null);
+  const [taskBeingDeleted, setTaskBeingDeleted] = useState<Task | null>(null);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
@@ -131,6 +133,39 @@ export default function Home() {
     }
   }
 
+  async function deleteTask() {
+    if (!taskBeingDeleted) {
+      return false;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const deletedTask = await trpc.remover.mutate({
+        id: taskBeingDeleted.id,
+      });
+
+      setTasks((currentTasks) =>
+        currentTasks.filter((task) => task.id !== deletedTask.id),
+      );
+      setToast({
+        id: Date.now(),
+        kind: "success",
+        message: "Tarefa excluída com sucesso.",
+      });
+      return true;
+    } catch {
+      setToast({
+        id: Date.now(),
+        kind: "error",
+        message: "Não foi possível excluir a tarefa. Tente novamente.",
+      });
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <main className="flex flex-1 bg-linear-to-br from-blue-50 via-slate-50 to-white px-4 py-10 sm:px-6 lg:px-8">
       <div className="mx-auto w-full max-w-3xl">
@@ -151,6 +186,7 @@ export default function Home() {
             className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-800 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 focus-visible:outline-none"
             onClick={() => {
               setTaskBeingEdited(null);
+              setTaskBeingDeleted(null);
               setIsCreatingTask(true);
             }}
             disabled={isLoading || Boolean(error) || isSubmitting}
@@ -165,7 +201,13 @@ export default function Home() {
           error={error}
           onEdit={(task) => {
             setIsCreatingTask(false);
+            setTaskBeingDeleted(null);
             setTaskBeingEdited(task);
+          }}
+          onDelete={(task) => {
+            setIsCreatingTask(false);
+            setTaskBeingEdited(null);
+            setTaskBeingDeleted(task);
           }}
         />
       </div>
@@ -198,6 +240,16 @@ export default function Home() {
           isSubmitting={isSubmitting}
           onClose={() => setIsCreatingTask(false)}
           onSave={createTask}
+        />
+      )}
+
+      {taskBeingDeleted && (
+        <TaskDeleteDialog
+          key={taskBeingDeleted.id}
+          task={taskBeingDeleted}
+          isDeleting={isSubmitting}
+          onClose={() => setTaskBeingDeleted(null)}
+          onConfirm={deleteTask}
         />
       )}
 

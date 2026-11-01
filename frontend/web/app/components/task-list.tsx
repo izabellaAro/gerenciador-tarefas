@@ -6,9 +6,16 @@ interface TaskListProps {
   isLoading: boolean;
   error: Error | null;
   onEdit: (task: Task) => void;
+  onDelete: (task: Task) => void;
 }
 
-export function TaskList({ tasks, isLoading, error, onEdit }: TaskListProps) {
+export function TaskList({
+  tasks,
+  isLoading,
+  error,
+  onEdit,
+  onDelete,
+}: TaskListProps) {
   if (isLoading) {
     return (
       <p
@@ -54,7 +61,12 @@ export function TaskList({ tasks, isLoading, error, onEdit }: TaskListProps) {
       </h2>
       <ul className="space-y-4">
         {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} onEdit={onEdit} />
+          <TaskCard
+            key={task.id}
+            task={task}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
         ))}
       </ul>
     </section>
