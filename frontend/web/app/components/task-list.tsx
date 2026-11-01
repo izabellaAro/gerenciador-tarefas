@@ -5,9 +5,10 @@ interface TaskListProps {
   tasks: Task[];
   isLoading: boolean;
   error: Error | null;
+  onEdit: (task: Task) => void;
 }
 
-export function TaskList({ tasks, isLoading, error }: TaskListProps) {
+export function TaskList({ tasks, isLoading, error, onEdit }: TaskListProps) {
   if (isLoading) {
     return (
       <p
@@ -53,7 +54,7 @@ export function TaskList({ tasks, isLoading, error }: TaskListProps) {
       </h2>
       <ul className="space-y-4">
         {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} />
+          <TaskCard key={task.id} task={task} onEdit={onEdit} />
         ))}
       </ul>
     </section>
