@@ -8,6 +8,6 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const router = criarTarefasRouter(app.get(TarefasService));
   app.use('/trpc', createExpressMiddleware({ router }));
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3030);
 }
 await bootstrap();
