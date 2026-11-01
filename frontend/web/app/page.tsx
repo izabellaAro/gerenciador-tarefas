@@ -1,23 +1,30 @@
 import { connection } from "next/server";
 import { TaskManager } from "./components/task-manager";
 import { serverTrpc } from "./lib/trpc-server";
-import type { Task } from "./lib/trpc";
+import type { Task, TaskCursor } from "./lib/trpc";
 
 export const instant = false;
 
 export default async function Home() {
   await connection();
   let tasks: Task[] = [];
+  let nextCursor: TaskCursor = null;
   let initialLoadFailed = false;
 
   try {
-    tasks = await serverTrpc.listar.query();
+    const page = await serverTrpc.listarPaginado.query({});
+    tasks = page.items;
+    nextCursor = page.proximoCursor;
   } catch (error) {
     console.error("Failed to load tasks during server rendering.", error);
     initialLoadFailed = true;
   }
 
   return (
-    <TaskManager initialTasks={tasks} initialLoadFailed={initialLoadFailed} />
+    <TaskManager
+      initialTasks={tasks}
+      initialNextCursor={nextCursor}
+      initialLoadFailed={initialLoadFailed}
+    />
   );
 }

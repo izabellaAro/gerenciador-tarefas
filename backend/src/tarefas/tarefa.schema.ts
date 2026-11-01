@@ -7,6 +7,11 @@ export interface Tarefa {
   dataCriacao: number;
 }
 
+export interface CursorTarefa {
+  dataCriacao: number;
+  id: string;
+}
+
 const titulo = z
   .string({ error: 'O título é obrigatório e deve ser um texto' })
   .trim()
@@ -32,5 +37,17 @@ export const atualizarTarefaSchema = idTarefaSchema
     message: 'Informe ao menos um campo para atualizar (titulo ou descricao)',
   });
 
+export const listarTarefasPaginadoSchema = z.object({
+  cursor: z
+    .object({
+      dataCriacao: z.number().int().nonnegative(),
+      id: z.uuid('O id informado não é um UUID válido'),
+    })
+    .optional(),
+});
+
 export type CriarTarefaInput = z.infer<typeof criarTarefaSchema>;
 export type AtualizarTarefaInput = z.infer<typeof atualizarTarefaSchema>;
+export type ListarTarefasPaginadoInput = z.infer<
+  typeof listarTarefasPaginadoSchema
+>;

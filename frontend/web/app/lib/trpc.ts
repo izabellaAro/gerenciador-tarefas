@@ -9,4 +9,6 @@ export const trpc = createTRPCClient<AppRouter>({
   ],
 });
 
-export type Task = Awaited<ReturnType<typeof trpc.listar.query>>[number];
+export type TaskPage = Awaited<ReturnType<typeof trpc.listarPaginado.query>>;
+export type Task = TaskPage["items"][number];
+export type TaskCursor = TaskPage["proximoCursor"];

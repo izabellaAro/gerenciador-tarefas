@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { TaskDeleteDialog } from "./task-delete-dialog";
 import { TaskFormModal } from "./task-form-modal";
 import { TaskList } from "./task-list";
 import { Toast, type ToastKind } from "./toast";
-import { trpc, type Task } from "../lib/trpc";
+import { trpc, type Task, type TaskCursor } from "../lib/trpc";
 
 interface ToastMessage {
   id: number;
@@ -15,19 +15,84 @@ interface ToastMessage {
 
 interface TaskManagerProps {
   initialTasks: Task[];
+  initialNextCursor: TaskCursor;
   initialLoadFailed: boolean;
 }
 
 export function TaskManager({
   initialTasks,
+  initialNextCursor,
   initialLoadFailed,
 }: TaskManagerProps) {
   const [tasks, setTasks] = useState(initialTasks);
+  const [nextCursor, setNextCursor] = useState(initialNextCursor);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(false);
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
   const [taskBeingEdited, setTaskBeingEdited] = useState<Task | null>(null);
   const [taskBeingDeleted, setTaskBeingDeleted] = useState<Task | null>(null);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadingMoreRef = useRef(false);
+
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || loadingMoreRef.current) {
+      return;
+    }
+
+    loadingMoreRef.current = true;
+    setIsLoadingMore(true);
+    setLoadMoreError(false);
+
+    try {
+      const page = await trpc.listarPaginado.query({ cursor: nextCursor });
+      setTasks((currentTasks) => {
+        const existingIds = new Set(currentTasks.map((task) => task.id));
+        return [
+          ...currentTasks,
+          ...page.items.filter((task) => !existingIds.has(task.id)),
+        ];
+      });
+      setNextCursor(page.proximoCursor);
+    } catch {
+      setLoadMoreError(true);
+    } finally {
+      loadingMoreRef.current = false;
+      setIsLoadingMore(false);
+    }
+  }, [nextCursor]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !nextCursor || initialLoadFailed) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          void loadMore();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [initialLoadFailed, loadMore, nextCursor]);
+
+  useEffect(() => {
+    const updateScrollToTopVisibility = () => {
+      setShowScrollToTop(window.scrollY > 300);
+    };
+
+    updateScrollToTopVisibility();
+    window.addEventListener("scroll", updateScrollToTopVisibility, {
+      passive: true,
+    });
+    return () => window.removeEventListener("scroll", updateScrollToTopVisibility);
+  }, []);
 
   async function saveTask({
     titulo,
@@ -188,6 +253,30 @@ export function TaskManager({
             setTaskBeingDeleted(task);
           }}
         />
+
+        {!initialLoadFailed && nextCursor && (
+          <div ref={sentinelRef} className="py-6 text-center">
+            {isLoadingMore && (
+              <p className="text-sm text-slate-600" role="status">
+                Carregando mais tarefas...
+              </p>
+            )}
+            {loadMoreError && !isLoadingMore && (
+              <div role="alert">
+                <p className="text-sm text-red-700">
+                  Não foi possível carregar mais tarefas.
+                </p>
+                <button
+                  type="button"
+                  className="mt-2 text-sm font-semibold text-blue-700 hover:text-blue-800 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:outline-none"
+                  onClick={() => void loadMore()}
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {taskBeingEdited && (
@@ -238,6 +327,17 @@ export function TaskManager({
           message={toast.message}
           onDismiss={() => setToast(null)}
         />
+      )}
+
+      {showScrollToTop && (
+        <button
+          type="button"
+          className="fixed right-6 bottom-6 rounded-full bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-blue-800 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 focus-visible:outline-none"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label="Voltar ao topo"
+        >
+          ↑ Topo
+        </button>
       )}
     </main>
   );

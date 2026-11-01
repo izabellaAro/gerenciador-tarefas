@@ -5,6 +5,7 @@ import {
   atualizarTarefaSchema,
   criarTarefaSchema,
   idTarefaSchema,
+  listarTarefasPaginadoSchema,
 } from './tarefa.schema.js';
 import type { TarefasService } from './tarefas.service.js';
 
@@ -49,6 +50,9 @@ const procedure = t.procedure.use(tratarErros);
 export function criarTarefasRouter(service: TarefasService) {
   return t.router({
     listar: procedure.query(() => service.listar()),
+    listarPaginado: procedure
+      .input(listarTarefasPaginadoSchema)
+      .query(({ input }) => service.listarPaginado(input)),
     buscarPorId: procedure
       .input(idTarefaSchema)
       .query(({ input }) => service.buscarPorId(input.id)),

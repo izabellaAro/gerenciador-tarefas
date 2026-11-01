@@ -2,9 +2,18 @@ import { randomUUID } from 'node:crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
   AtualizarTarefaInput,
+  CursorTarefa,
   CriarTarefaInput,
+  ListarTarefasPaginadoInput,
   Tarefa,
 } from './tarefa.schema.js';
+
+export const LIMITE_PAGINA_TAREFAS = 10;
+
+export interface PaginaTarefas {
+  items: Tarefa[];
+  proximoCursor: CursorTarefa | null;
+}
 
 @Injectable()
 export class TarefasService {
@@ -23,6 +32,37 @@ export class TarefasService {
 
   listar(): Tarefa[] {
     return [...this.tarefas.values()];
+  }
+
+  listarPaginado({
+    cursor,
+  }: ListarTarefasPaginadoInput): PaginaTarefas {
+    const tarefas = [...this.tarefas.values()]
+      .sort(
+        (a, b) =>
+          a.dataCriacao - b.dataCriacao || a.id.localeCompare(b.id),
+      )
+      .filter(
+        (tarefa) =>
+          !cursor ||
+          tarefa.dataCriacao > cursor.dataCriacao ||
+          (tarefa.dataCriacao === cursor.dataCriacao &&
+            tarefa.id.localeCompare(cursor.id) > 0),
+      );
+    const items = tarefas.slice(0, LIMITE_PAGINA_TAREFAS);
+    const possuiMais = tarefas.length > LIMITE_PAGINA_TAREFAS;
+    const ultimaTarefa = items.at(-1);
+
+    return {
+      items,
+      proximoCursor:
+        possuiMais && ultimaTarefa
+          ? {
+              dataCriacao: ultimaTarefa.dataCriacao,
+              id: ultimaTarefa.id,
+            }
+          : null,
+    };
   }
 
   buscarPorId(id: string): Tarefa {
