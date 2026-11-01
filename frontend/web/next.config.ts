@@ -1,11 +1,14 @@
 import type { NextConfig } from "next";
 
+const trpcServerUrl =
+  process.env.TRPC_SERVER_URL ?? "http://localhost:3030/trpc";
+
 const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
         source: "/trpc/:path*",
-        destination: "http://localhost:3030/trpc/:path*",
+        destination: `${trpcServerUrl}/:path*`,
       },
     ];
   },
